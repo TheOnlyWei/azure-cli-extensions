@@ -2,6 +2,10 @@
 
 Release History
 ===============
+1.4.0
+++++++
+* Added support for reading ARM metadata 2022-09-01.
+
 1.3.16
 ++++++
 * Adding force delete in connect command in case of stale resources present during onboarding
