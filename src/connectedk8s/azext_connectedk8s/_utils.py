@@ -133,19 +133,24 @@ def add_helm_repo(kube_config, kube_context, helm_client_location):
         raise CLIInternalError("Unable to add repository {} to helm: ".format(repo_url) + error_helm_repo.decode("ascii"))
 
 
-def get_helm_registry(cmd, config_dp_endpoint, dp_endpoint_dogfood=None, release_train_dogfood=None):
+def get_helm_registry(cmd, config_dp_endpoint, dp_endpoint_custom=None, release_train_custom=None):
     # Setting uri
-    get_chart_location_url = "{}/{}/GetLatestHelmPackagePath?api-version=2019-11-01-preview".format(config_dp_endpoint, 'azure-arc-k8sagents')
+    api_version = "2019-11-01-preview"
+    chart_location_url_segment = "azure-arc-k8sagents/GetLatestHelmPackagePath?api-version={}".format(api_version)
     release_train = os.getenv('RELEASETRAIN') if os.getenv('RELEASETRAIN') else 'stable'
-    if dp_endpoint_dogfood:
-        get_chart_location_url = "{}/azure-arc-k8sagents/GetLatestHelmPackagePath?api-version=2019-11-01-preview".format(dp_endpoint_dogfood)
-        if release_train_dogfood:
-            release_train = release_train_dogfood
+
+    if dp_endpoint_custom:
+        chart_location_url = "{}/{}".format(dp_endpoint_custom, chart_location_url_segment)
+        if release_train_custom:
+            release_train = release_train_custom
+    else:
+        chart_location_url = "{}/{}".format(config_dp_endpoint, chart_location_url_segment)
+
     uri_parameters = ["releaseTrain={}".format(release_train)]
     resource = cmd.cli_ctx.cloud.endpoints.active_directory_resource_id
     # Sending request
     try:
-        r = send_raw_request(cmd.cli_ctx, 'post', get_chart_location_url, uri_parameters=uri_parameters, resource=resource)
+        r = send_raw_request(cmd.cli_ctx, 'post', chart_location_url, uri_parameters=uri_parameters, resource=resource)
     except Exception as e:
         telemetry.set_exception(exception=e, fault_type=consts.Get_HelmRegistery_Path_Fault_Type,
                                 summary='Error while fetching helm chart registry path')
