@@ -331,21 +331,21 @@ def add_helm_repo(kube_config, kube_context, helm_client_location):
         raise CLIInternalError("Unable to add repository {} to helm: ".format(repo_url) + error_helm_repo.decode("ascii"))
 
 
-def get_helm_registry(cmd, config_dp_endpoint, dp_endpoint_dogfood=None, release_train_dogfood=None):
+def get_helm_registry(cmd, config_dp_endpoint, release_train_custom=None):
     # Setting uri
-    get_chart_location_url = "{}/{}/GetLatestHelmPackagePath?api-version=2019-11-01-preview".format(config_dp_endpoint, 'azure-arc-k8sagents')
+    api_version = "2019-11-01-preview"
+    chart_location_url_segment = "azure-arc-k8sagents/GetLatestHelmPackagePath?api-version={}".format(api_version)
     release_train = os.getenv('RELEASETRAIN') if os.getenv('RELEASETRAIN') else 'stable'
-    if dp_endpoint_dogfood:
-        get_chart_location_url = "{}/azure-arc-k8sagents/GetLatestHelmPackagePath?api-version=2019-11-01-preview".format(dp_endpoint_dogfood)
-        if release_train_dogfood:
-            release_train = release_train_dogfood
+    chart_location_url = "{}/{}".format(config_dp_endpoint, chart_location_url_segment)
+    if release_train_custom:
+        release_train = release_train_custom
     uri_parameters = ["releaseTrain={}".format(release_train)]
     resource = cmd.cli_ctx.cloud.endpoints.active_directory_resource_id
     headers = None
     if os.getenv('AZURE_ACCESS_TOKEN'):
         headers = ["Authorization=Bearer {}".format(os.getenv('AZURE_ACCESS_TOKEN'))]
     # Sending request with retries
-    r = send_request_with_retries(cmd.cli_ctx, 'post', get_chart_location_url, headers=headers, fault_type=consts.Get_HelmRegistery_Path_Fault_Type, summary='Error while fetching helm chart registry path', uri_parameters=uri_parameters, resource=resource)
+    r = send_request_with_retries(cmd.cli_ctx, 'post', chart_location_url, headers=headers, fault_type=consts.Get_HelmRegistery_Path_Fault_Type, summary='Error while fetching helm chart registry path', uri_parameters=uri_parameters, resource=resource)
     if r.content:
         try:
             return r.json().get('repositoryPath')
@@ -524,7 +524,7 @@ def cleanup_release_install_namespace_if_exists():
 # DO NOT use this method for re-put scenarios. This method involves new NS creation for helm release. For re-put scenarios, brownfield scenario needs to be handled where helm release still stays in default NS
 def helm_install_release(chart_path, subscription_id, kubernetes_distro, kubernetes_infra, resource_group_name, cluster_name,
                          location, onboarding_tenant_id, http_proxy, https_proxy, no_proxy, proxy_cert, private_key_pem,
-                         kube_config, kube_context, no_wait, values_file_provided, values_file, cloud_name, disable_auto_upgrade,
+                         kube_config, kube_context, no_wait, values_file_provided, values_file, environment_name, disable_auto_upgrade,
                          enable_custom_locations, custom_locations_oid, helm_client_location, enable_private_link, onboarding_timeout="600",
                          container_log_path=None):
     cmd_helm_install = [helm_client_location, "upgrade", "--install", "azure-arc", chart_path,
@@ -537,7 +537,7 @@ def helm_install_release(chart_path, subscription_id, kubernetes_distro, kuberne
                         "--set", "global.tenantId={}".format(onboarding_tenant_id),
                         "--set", "global.onboardingPrivateKey={}".format(private_key_pem),
                         "--set", "systemDefaultValues.spnOnboarding=false",
-                        "--set", "global.azureEnvironment={}".format(cloud_name),
+                        "--set", "global.azureEnvironment={}".format(environment_name),
                         "--set", "systemDefaultValues.clusterconnect-agent.enabled=true",
                         "--namespace", "{}".format(consts.Release_Install_Namespace),
                         "--create-namespace",
