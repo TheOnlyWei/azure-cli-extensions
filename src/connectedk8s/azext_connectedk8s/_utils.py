@@ -522,12 +522,12 @@ def cleanup_release_install_namespace_if_exists():
 
 
 # DO NOT use this method for re-put scenarios. This method involves new NS creation for helm release. For re-put scenarios, brownfield scenario needs to be handled where helm release still stays in default NS
-def helm_install_release(chart_path, subscription_id, kubernetes_distro, kubernetes_infra, resource_group_name, cluster_name,
+def helm_install_release(chart_path, azure_arc_agent_version, subscription_id, kubernetes_distro, kubernetes_infra, resource_group_name, cluster_name,
                          location, onboarding_tenant_id, http_proxy, https_proxy, no_proxy, proxy_cert, private_key_pem,
                          kube_config, kube_context, no_wait, values_file_provided, values_file, environment_name, disable_auto_upgrade,
                          enable_custom_locations, custom_locations_oid, helm_client_location, enable_private_link, onboarding_timeout="600",
                          container_log_path=None):
-    cmd_helm_install = [helm_client_location, "upgrade", "--install", "azure-arc", chart_path,
+    cmd_helm_install = [helm_client_location, "upgrade", "--install", "azure-arc", chart_path, "--version", azure_arc_agent_version,
                         "--set", "global.subscriptionId={}".format(subscription_id),
                         "--set", "global.kubernetesDistro={}".format(kubernetes_distro),
                         "--set", "global.kubernetesInfra={}".format(kubernetes_infra),
@@ -542,6 +542,41 @@ def helm_install_release(chart_path, subscription_id, kubernetes_distro, kuberne
                         "--namespace", "{}".format(consts.Release_Install_Namespace),
                         "--create-namespace",
                         "--output", "json"]
+
+    resource_manager = "https://resourcemanagerweb.azs:40007/"
+    notification_endpoint = "http://notificationsapi.gnsdp.azs:4909/"
+    config_endpoint = "https://configwebdp.configrp.azs:4914"
+    his_endpoint = "https://his.devfabric.azs.microsoft.com"
+    relay_endpoint = ".servicebus.azs.microsoft.com"
+
+    cmd_helm_install.extend(
+        [ 
+            "--set", "systemDefaultValues.image.repository=arcaserver.azurecr.io",
+            "--set", "systemDefaultValues.image.releaseName=agent",
+            "--set", "systemDefaultValues.customIdentityProviderEnabled=true",
+            "--set", "systemDefaultValues.azureResourceManagerEndpoint={}".format(resource_manager),
+            "--set", "systemDefaultValues.azureArcAgents.config_dp_endpoint_override={}".format(config_endpoint),
+            "--set", "systemDefaultValues.clusterconnect-agent.notification_dp_endpoint_override={}".format(notification_endpoint),
+            "--set", "systemDefaultValues.clusterconnect-agent.relay_endpoint_suffix_override={}".format(relay_endpoint),
+            "--set", "systemDefaultValues.clusterconnect-agent.tag={}".format(azure_arc_agent_version),
+            "--set", "systemDefaultValues.clusterconnectservice-operator.tag={}".format(azure_arc_agent_version),
+            "--set", "systemDefaultValues.connect-agent.tag={}".format(azure_arc_agent_version),
+            "--set", "systemDefaultValues.fluent-bit.tag={}".format(azure_arc_agent_version),
+            "--set", "systemDefaultValues.clusteridentityoperator.tag={}".format(azure_arc_agent_version),
+            "--set", "systemDefaultValues.clusteridentityoperator.image=identity-controller",
+            "--set", "systemDefaultValues.config-agent.tag={}".format(azure_arc_agent_version),
+            "--set", "systemDefaultValues.clusteridentityoperator.his_endpoint_override={}".format(his_endpoint),
+            "--set", "systemDefaultValues.extensionoperator.tag={}".format(azure_arc_agent_version),
+            "--set", "systemDefaultValues.config-operator.tag={}".format(azure_arc_agent_version),
+            "--set", "systemDefaultValues.clusterMetadataOperator.tag={}".format(azure_arc_agent_version),
+            "--set", "systemDefaultValues.fluxlogsagent.tag={}".format(azure_arc_agent_version),
+            "--set", "systemDefaultValues.resourceSyncAgent.tag={}".format(azure_arc_agent_version),
+            "--set", "global.isCustomCert=true",
+            "--set", "global.proxyCert={}".format(proxy_cert),
+            "--set", "systemDefaultValues.debugLogging=true"
+        ]
+    )
+
     # Add custom-locations related params
     if enable_custom_locations and not enable_private_link:
         cmd_helm_install.extend(["--set", "systemDefaultValues.customLocations.enabled=true"])
