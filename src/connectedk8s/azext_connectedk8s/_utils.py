@@ -550,7 +550,6 @@ def helm_install_release(chart_path, azure_arc_agent_version, subscription_id, k
     config_endpoint = "https://configwebdp.configrp.azs:4914"
     his_endpoint = "https://his.devfabric.azs.microsoft.com"
     relay_endpoint = ".servicebus.azs.microsoft.com"
-
     cmd_helm_install.extend(
         [ 
             "--set", "systemDefaultValues.image.repository=arcaserver.azurecr.io",
@@ -573,8 +572,6 @@ def helm_install_release(chart_path, azure_arc_agent_version, subscription_id, k
             "--set", "systemDefaultValues.clusterMetadataOperator.tag={}".format(azure_arc_agent_version),
             "--set", "systemDefaultValues.fluxlogsagent.tag={}".format(azure_arc_agent_version),
             "--set", "systemDefaultValues.resourceSyncAgent.tag={}".format(azure_arc_agent_version),
-            "--set", "global.isCustomCert=true",
-            "--set", "global.proxyCert={}".format(proxy_cert),
             "--set", "systemDefaultValues.debugLogging=true"
         ]
     )
