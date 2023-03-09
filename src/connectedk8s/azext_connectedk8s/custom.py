@@ -352,7 +352,7 @@ def create_connectedk8s(cmd, client, resource_group_name, cluster_name, correlat
     # Get azure-arc agent version for telemetry
     azure_arc_agent_version = registry_path.split(':')[1]
     telemetry.add_extension_event('connectedk8s', {'Context.Default.AzureCLI.AgentVersion': azure_arc_agent_version})
-
+    print(f"azure_arc_agent_version from url: {azure_arc_agent_version}")
     # Get helm chart path
     chart_path = utils.get_chart_path(registry_path, kube_config, kube_context, helm_client_location)
     print("Chart path: {}".format(chart_path))
