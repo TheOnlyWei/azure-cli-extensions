@@ -527,6 +527,7 @@ def helm_install_release(chart_path, azure_arc_agent_version, subscription_id, k
                          kube_config, kube_context, no_wait, values_file_provided, values_file, environment_name, disable_auto_upgrade,
                          enable_custom_locations, custom_locations_oid, helm_client_location, enable_private_link, onboarding_timeout="600",
                          container_log_path=None):
+
     cmd_helm_install = [helm_client_location, "upgrade", "--install", "azure-arc", chart_path, "--version", azure_arc_agent_version,
                         "--set", "global.subscriptionId={}".format(subscription_id),
                         "--set", "global.kubernetesDistro={}".format(kubernetes_distro),
@@ -544,41 +545,43 @@ def helm_install_release(chart_path, azure_arc_agent_version, subscription_id, k
                         "--output", "json"]
     
     # START: on-premise modification
-    # TODO: add check to see if current environment is on-premise.
-    azure_arc_agent_version = "0.0.4"
-    print(f"using azure_arc_agent_version version: {azure_arc_agent_version}")
     # TODO: remove hardcoded urls and use metadata_endpoints dictionary to get the values after endpoints are available.
+    # TODO: new resource manager endpoint looks like: https://armmanagement.devfabric.azs.microsoft.com/, but the one returned
+    # by metadata endpoints URL doesn't work without modification.
     resource_manager = "https://resourcemanagerweb.azs:40007/"
-    notification_endpoint = "http://notificationsapi.gnsdp.azs:4909/"
-    config_endpoint = "https://configwebdp.configrp.azs:4914"
-    his_endpoint = "https://his.devfabric.azs.microsoft.com"
-    relay_endpoint = ".servicebus.azs.microsoft.com"
+    metadata = get_metadata(resource_manager, "2022-09-01")
+    if "dataplaneEndpoints" in metadata:
+        notification_endpoint = metadata["dataplaneEndpoints"]["arcGlobalNotificationServiceEndpoint"]
+        config_endpoint = metadata["dataplaneEndpoints"]["arcConfigEndpoint"]
+        his_endpoint = metadata["dataplaneEndpoints"]["arcHybridIdentityServiceEndpoint"]
+        relay_endpoint = metadata["suffixes"]["relayEndpointSuffix"]
 
-    cmd_helm_install.extend(
-        [ 
-            "--set", "systemDefaultValues.image.repository=arcaserver.azurecr.io",
-            "--set", "systemDefaultValues.image.releaseName=agent",
-            "--set", "systemDefaultValues.customIdentityProviderEnabled=true",
-            "--set", "systemDefaultValues.azureResourceManagerEndpoint={}".format(resource_manager),
-            "--set", "systemDefaultValues.azureArcAgents.config_dp_endpoint_override={}".format(config_endpoint),
-            "--set", "systemDefaultValues.clusterconnect-agent.notification_dp_endpoint_override={}".format(notification_endpoint),
-            "--set", "systemDefaultValues.clusterconnect-agent.relay_endpoint_suffix_override={}".format(relay_endpoint),
-            "--set", "systemDefaultValues.clusterconnect-agent.tag={}".format(azure_arc_agent_version),
-            "--set", "systemDefaultValues.clusterconnectservice-operator.tag={}".format(azure_arc_agent_version),
-            "--set", "systemDefaultValues.connect-agent.tag={}".format(azure_arc_agent_version),
-            "--set", "systemDefaultValues.fluent-bit.tag={}".format(azure_arc_agent_version),
-            "--set", "systemDefaultValues.clusteridentityoperator.tag={}".format(azure_arc_agent_version),
-            "--set", "systemDefaultValues.clusteridentityoperator.image=identity-controller",
-            "--set", "systemDefaultValues.config-agent.tag={}".format(azure_arc_agent_version),
-            "--set", "systemDefaultValues.clusteridentityoperator.his_endpoint_override={}".format(his_endpoint),
-            "--set", "systemDefaultValues.extensionoperator.tag={}".format(azure_arc_agent_version),
-            "--set", "systemDefaultValues.config-operator.tag={}".format(azure_arc_agent_version),
-            "--set", "systemDefaultValues.clusterMetadataOperator.tag={}".format(azure_arc_agent_version),
-            "--set", "systemDefaultValues.fluxlogsagent.tag={}".format(azure_arc_agent_version),
-            "--set", "systemDefaultValues.resourceSyncAgent.tag={}".format(azure_arc_agent_version),
-            "--set", "systemDefaultValues.debugLogging=true"
-        ]
-    )
+        cmd_helm_install.extend(
+            [ 
+                "--set", "systemDefaultValues.image.repository=arcaserver.azurecr.io",
+                "--set", "systemDefaultValues.image.releaseName=agent",
+                "--set", "systemDefaultValues.customIdentityProviderEnabled=true",
+                "--set", "systemDefaultValues.azureResourceManagerEndpoint={}".format(resource_manager),
+                "--set", "systemDefaultValues.azureArcAgents.config_dp_endpoint_override={}".format(config_endpoint),
+                "--set", "systemDefaultValues.clusterconnect-agent.notification_dp_endpoint_override={}".format(notification_endpoint),
+                "--set", "systemDefaultValues.clusterconnect-agent.relay_endpoint_suffix_override={}".format(relay_endpoint),
+                "--set", "systemDefaultValues.clusterconnect-agent.tag={}".format(azure_arc_agent_version),
+                "--set", "systemDefaultValues.clusterconnectservice-operator.tag={}".format(azure_arc_agent_version),
+                "--set", "systemDefaultValues.connect-agent.tag={}".format(azure_arc_agent_version),
+                "--set", "systemDefaultValues.fluent-bit.tag={}".format(azure_arc_agent_version),
+                "--set", "systemDefaultValues.clusteridentityoperator.tag={}".format(azure_arc_agent_version),
+                "--set", "systemDefaultValues.clusteridentityoperator.image=identity-controller",
+                "--set", "systemDefaultValues.config-agent.tag={}".format(azure_arc_agent_version),
+                "--set", "systemDefaultValues.clusteridentityoperator.his_endpoint_override={}".format(his_endpoint),
+                "--set", "systemDefaultValues.extensionoperator.tag={}".format(azure_arc_agent_version),
+                "--set", "systemDefaultValues.config-operator.tag={}".format(azure_arc_agent_version),
+                "--set", "systemDefaultValues.clusterMetadataOperator.tag={}".format(azure_arc_agent_version),
+                "--set", "systemDefaultValues.fluxlogsagent.tag={}".format(azure_arc_agent_version),
+                "--set", "systemDefaultValues.resourceSyncAgent.tag={}".format(azure_arc_agent_version),
+                "--set", "systemDefaultValues.debugLogging=true"
+            ]
+        )
+
     # END: on-premise modification
 
     # Add custom-locations related params
@@ -787,3 +790,24 @@ def is_cli_using_msal_auth():
             continue
         return i > j
     return len(v1.split(".")) == len(v2.split("."))
+
+
+def get_metadata(arm_endpoint, api_version="2015-01-01"):
+    metadata_url_suffix = f"/metadata/endpoints?api-version={api_version}"
+    try:
+        error_msg_fmt = "Unable to get metadata endpoints from the cloud.\n{}"
+        import requests
+        session = requests.Session()
+        metadata_endpoint = arm_endpoint + metadata_url_suffix
+        response = session.get(metadata_endpoint)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            msg = "Server returned status code {} for {}".format(response.status_code, metadata_endpoint)
+            raise AzureResponseError(error_msg_fmt.format(msg))
+    except (requests.exceptions.ConnectionError, requests.exceptions.HTTPError) as err:
+        msg = "Please ensure you have network connection. Error detail: {}".format(str(err))
+        raise AzureResponseError(error_msg_fmt.format(msg))
+    except ValueError as err:
+        msg = "Response body does not contain valid json. Error detail: {}".format(str(err))
+        raise AzureResponseError(error_msg_fmt.format(msg))
