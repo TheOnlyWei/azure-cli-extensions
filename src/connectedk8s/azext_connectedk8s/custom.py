@@ -133,16 +133,14 @@ def create_connectedk8s(cmd, client, resource_group_name, cluster_name, correlat
     values_file_provided, values_file = utils.get_values_file()
 
     release_train_custom = None
+    metadata = utils.get_metadata(cmd.cli_ctx.cloud.endpoints.resource_manager, "2022-09-01")
     # Read and validate the helm values file for Dogfood.
     if cmd.cli_ctx.cloud.endpoints.resource_manager == consts.Dogfood_RMEndpoint:
         environment_name = consts.Azure_DogfoodCloudName
         config_dp_endpoint, release_train_custom = validate_env_file_dogfood(values_file, values_file_provided)
     # Get the values or endpoints required for retreiving the Helm registry URL.
-    # TODO: main changes for on-premise, but these endpoints currently don't exist.
-    # elif hasattr(cmd.cli_ctx.cloud.endpoints, 'dataplane_endpoints'):
-    #     config_dp_endpoint = cmd.cli_ctx.cloud.endpoints.dataplane_endpoints.arcConfigEndpoint
-    # TODO: Remove hardcode.
-    config_dp_endpoint = "https://configwebdp.configrp.azs:4914"
+    if "dataplaneEndpoints" in metadata:
+        config_dp_endpoint = metadata["dataplaneEndpoints"]["arcConfigEndpoint"]
 
     # Loading the kubeconfig file in kubernetes client configuration
     load_kube_config(kube_config, kube_context)
@@ -387,7 +385,7 @@ def create_connectedk8s(cmd, client, resource_group_name, cluster_name, correlat
     enable_custom_locations, custom_locations_oid = check_cl_registration_and_get_oid(cmd, cl_oid, subscription_id)
 
     # Install azure-arc agents
-    utils.helm_install_release(chart_path, azure_arc_agent_version, subscription_id, kubernetes_distro, kubernetes_infra, resource_group_name, cluster_name,
+    utils.helm_install_release(cmd.cli_ctx.cloud.endpoints.resource_manager, chart_path, azure_arc_agent_version, subscription_id, kubernetes_distro, kubernetes_infra, resource_group_name, cluster_name,
                                location, onboarding_tenant_id, http_proxy, https_proxy, no_proxy, proxy_cert, private_key_pem, kube_config,
                                kube_context, no_wait, values_file_provided, values_file, environment_name, disable_auto_upgrade, enable_custom_locations,
                                custom_locations_oid, helm_client_location, enable_private_link, onboarding_timeout, container_log_path)
@@ -1012,15 +1010,13 @@ def update_connected_cluster(cmd, client, resource_group_name, cluster_name, htt
     values_file_provided, values_file = utils.get_values_file()
 
     release_train_custom = None
+    metadata = utils.get_metadata(cmd.cli_ctx.cloud.endpoints.resource_manager, "2022-09-01")
     # Read and validate the helm values file for Dogfood.
     if cmd.cli_ctx.cloud.endpoints.resource_manager == consts.Dogfood_RMEndpoint:
         config_dp_endpoint, release_train_custom = validate_env_file_dogfood(values_file, values_file_provided)
-    # Get set the values or endpoints required for retreiving the Helm registry URL.
-    # TODO: endpoint may not be named like this.
-    # elif hasattr(cmd.cli_ctx.cloud.endpoints, 'dataplane_endpoints'):
-    #     config_dp_endpoint = cmd.cli_ctx.cloud.endpoints.dataplane_endpoints.arcConfigEndpoint
-
-    config_dp_endpoint = "https://configwebdp.configrp.azs:4914"
+    # Get the values or endpoints required for retreiving the Helm registry URL.
+    if "dataplaneEndpoints" in metadata:
+        config_dp_endpoint = metadata["dataplaneEndpoints"]["arcConfigEndpoint"]
 
     # Loading the kubeconfig file in kubernetes client configuration
     load_kube_config(kube_config, kube_context)
@@ -1153,15 +1149,13 @@ def upgrade_agents(cmd, client, resource_group_name, cluster_name, kube_config=N
     values_file_provided, values_file = utils.get_values_file()
 
     release_train_custom = None
+    metadata = utils.get_metadata(cmd.cli_ctx.cloud.endpoints.resource_manager, "2022-09-01")
     # Read and validate the helm values file for Dogfood.
     if cmd.cli_ctx.cloud.endpoints.resource_manager == consts.Dogfood_RMEndpoint:
         config_dp_endpoint, release_train_custom = validate_env_file_dogfood(values_file, values_file_provided)
     # Get set the values or endpoints required for retreiving the Helm registry URL.
-    # TODO: endpoint may not be named like this.
-    # elif hasattr(cmd.cli_ctx.cloud.endpoints, 'dataplane_endpoints'):
-    #     config_dp_endpoint = cmd.cli_ctx.cloud.endpoints.dataplane_endpoints.arcConfigEndpoint
-
-    config_dp_endpoint = "https://configwebdp.configrp.azs:4914"
+    if "dataplaneEndpoints" in metadata:
+        config_dp_endpoint = metadata["dataplaneEndpoints"]["arcConfigEndpoint"]
 
     # Loading the kubeconfig file in kubernetes client configuration
     load_kube_config(kube_config, kube_context)
@@ -1436,15 +1430,13 @@ def enable_features(cmd, client, resource_group_name, cluster_name, features, ku
     values_file_provided, values_file = utils.get_values_file()
 
     release_train_custom = None
+    metadata = utils.get_metadata(cmd.cli_ctx.cloud.endpoints.resource_manager, "2022-09-01")
     # Read and validate the helm values file for Dogfood.
     if cmd.cli_ctx.cloud.endpoints.resource_manager == consts.Dogfood_RMEndpoint:
         config_dp_endpoint, release_train_custom = validate_env_file_dogfood(values_file, values_file_provided)
     # Get set the values or endpoints required for retreiving the Helm registry URL.
-    # TODO: endpoint may not be named like this.
-    # elif hasattr(cmd.cli_ctx.cloud.endpoints, 'dataplane_endpoints'):
-    #     config_dp_endpoint = cmd.cli_ctx.cloud.endpoints.dataplane_endpoints.arcConfigEndpoint
-
-    config_dp_endpoint = "https://configwebdp.configrp.azs:4914"
+    if "dataplaneEndpoints" in metadata:
+        config_dp_endpoint = metadata["dataplaneEndpoints"]["arcConfigEndpoint"]
 
     # Loading the kubeconfig file in kubernetes client configuration
     load_kube_config(kube_config, kube_context)
@@ -1553,15 +1545,13 @@ def disable_features(cmd, client, resource_group_name, cluster_name, features, k
     values_file_provided, values_file = utils.get_values_file()
 
     release_train_custom = None
+    metadata = utils.get_metadata(cmd.cli_ctx.cloud.endpoints.resource_manager, "2022-09-01")
     # Read and validate the helm values file for Dogfood.
     if cmd.cli_ctx.cloud.endpoints.resource_manager == consts.Dogfood_RMEndpoint:
         config_dp_endpoint, release_train_custom = validate_env_file_dogfood(values_file, values_file_provided)
     # Get set the values or endpoints required for retreiving the Helm registry URL.
-    # TODO: endpoint may not be named like this.
-    # elif hasattr(cmd.cli_ctx.cloud.endpoints, 'dataplane_endpoints'):
-    #     config_dp_endpoint = cmd.cli_ctx.cloud.endpoints.dataplane_endpoints.arcConfigEndpoint
-
-    config_dp_endpoint = "https://configwebdp.configrp.azs:4914"
+    if "dataplaneEndpoints" in metadata:
+        config_dp_endpoint = metadata["dataplaneEndpoints"]["arcConfigEndpoint"]
 
     # Loading the kubeconfig file in kubernetes client configuration
     load_kube_config(kube_config, kube_context)
@@ -2358,15 +2348,13 @@ def troubleshoot(cmd, client, resource_group_name, cluster_name, kube_config=Non
             values_file_provided, values_file = utils.get_values_file()
 
             release_train_custom = None
+            metadata = utils.get_metadata(cmd.cli_ctx.cloud.endpoints.resource_manager, "2022-09-01")
             # Read and validate the helm values file for Dogfood.
             if cmd.cli_ctx.cloud.endpoints.resource_manager == consts.Dogfood_RMEndpoint:
                 config_dp_endpoint, release_train_custom = validate_env_file_dogfood(values_file, values_file_provided)
             # Get set the values or endpoints required for retreiving the Helm registry URL.
-            # TODO: endpoint may not be named like this.
-            # elif hasattr(cmd.cli_ctx.cloud.endpoints, 'dataplane_endpoints'):
-            #     config_dp_endpoint = cmd.cli_ctx.cloud.endpoints.dataplane_endpoints.arcConfigEndpoint
-
-            config_dp_endpoint = "https://configwebdp.configrp.azs:4914"
+            if "dataplaneEndpoints" in metadata:
+                config_dp_endpoint = metadata["dataplaneEndpoints"]["arcConfigEndpoint"]
 
             # Adding helm repo
             if os.getenv('HELMREPONAME') and os.getenv('HELMREPOURL'):
