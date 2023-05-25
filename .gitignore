@@ -1,5 +1,5 @@
 # ignore test files
-connectedk8s/azext_connectedk8s/tests/latest/data/
+*/connectedk8s/azext_connectedk8s/tests/latest/data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
