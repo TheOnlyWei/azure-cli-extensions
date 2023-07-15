@@ -135,8 +135,6 @@ def create_connectedk8s(cmd, client, resource_group_name, cluster_name, correlat
 
     # Checking whether optional extra values file has been provided.
     values_file = utils.get_values_file()
-    if cmd.cli_ctx.cloud.endpoints.resource_manager == consts.Dogfood_RMEndpoint:
-        azure_cloud = consts.Azure_DogfoodCloudName
 
     arm_metadata = utils.get_metadata(cmd.cli_ctx.cloud.endpoints.resource_manager)
     config_dp_endpoint, release_train = get_config_dp_endpoint(cmd, location, values_file, arm_metadata)
@@ -405,6 +403,8 @@ def send_cloud_telemetry(cmd):
         cloud_name = consts.Azure_PublicCloudName
     elif cloud_name == consts.USGovCloud_OriginalName:
         cloud_name = consts.Azure_USGovCloudName
+    elif cmd.cli_ctx.cloud.endpoints.resource_manager == consts.Dogfood_RMEndpoint:
+        cloud_name = consts.Azure_DogfoodCloudName
     return cloud_name
 
 
@@ -1795,9 +1795,17 @@ def client_side_proxy_wrapper(cmd,
     if port_error_string != "":
         raise ClientRequestError(port_error_string)
 
-    # Set csp url based on cloud
     CSP_Url = consts.CSP_Storage_Url
-    if cloud == consts.Azure_ChinaCloudName:
+
+    # Set csp url based on cloud
+    # TODO: retrieve CSP_url for on-premise.
+    # TODO: temporary solution until K8s introduces a way to get CSP_url.
+    arm_metadata = utils.get_metadata(cmd.cli_ctx.cloud.endpoints.resource_manager)
+    # TODO: temporary "dataplaneEndpoints" in arm_metadata check for on-premise environment where this configuration
+    # is currently needed. CSP_Url should be retrievable without user input in the final version.
+    if "dataplaneEndpoints" in arm_metadata:
+        CSP_Url = "https://k8sconnectcsp.azureedge.net"
+    elif cloud == consts.Azure_ChinaCloudName:
         CSP_Url = consts.CSP_Storage_Url_Mooncake
     elif cloud == consts.Azure_USGovCloudName:
         CSP_Url = consts.CSP_Storage_Url_Fairfax
@@ -1814,6 +1822,11 @@ def client_side_proxy_wrapper(cmd,
         requestUri = f'{CSP_Url}/{consts.RELEASE_DATE_LINUX}/arcProxy{operating_system}{consts.CLIENT_PROXY_VERSION}'
         older_version_string = f'.clientproxy/arcProxy{operating_system}*'
         creds_string = r'.azure/accessTokens.json'
+
+    # TODO: temporary hard-coded URL for on-premise.
+    if "dataplaneEndpoints" in arm_metadata:
+        install_location_string = f'.clientproxy/arcProxy{operating_system}WinfieldPreview'
+        requestUri = "https://arcatest.blob.core.windows.net/proxy/arcproxy.exe"
 
     else:
         telemetry.set_exception(exception='Unsupported OS', fault_type=consts.Unsupported_Fault_Type,
@@ -1882,6 +1895,7 @@ def client_side_proxy_wrapper(cmd,
     # initializations
     user_type = 'sat'
     creds = ''
+    dict_file = {'server': {'httpPort': int(client_proxy_port), 'httpsPort': int(api_server_port)}, 'identity': {'tenantID': tenantId}}
 
     # if service account token is not passed
     if token is None:
@@ -1891,17 +1905,9 @@ def client_side_proxy_wrapper(cmd,
         user_type = account['user']['type']
 
         if user_type == 'user':
-            dict_file = {'server': {'httpPort': int(client_proxy_port), 'httpsPort': int(api_server_port)}, 'identity': {'tenantID': tenantId, 'clientID': consts.CLIENTPROXY_CLIENT_ID}}
+            dict_file['identity']['clientID'] = consts.CLIENTPROXY_CLIENT_ID
         else:
-            dict_file = {'server': {'httpPort': int(client_proxy_port), 'httpsPort': int(api_server_port)}, 'identity': {'tenantID': tenantId, 'clientID': account['user']['name']}}
-
-        if cloud == 'DOGFOOD':
-            dict_file['cloud'] = 'AzureDogFood'
-
-        if cloud == consts.Azure_ChinaCloudName:
-            dict_file['cloud'] = 'AzureChinaCloud'
-        elif cloud == consts.Azure_USGovCloudName:
-            dict_file['cloud'] = 'AzureUSGovernmentCloud'
+            dict_file['identity']['clientID'] = account['user']['name']
 
         if not utils.is_cli_using_msal_auth():
             # Fetching creds
@@ -1937,14 +1943,20 @@ def client_side_proxy_wrapper(cmd,
 
             if user_type != 'user':
                 dict_file['identity']['clientSecret'] = creds
-    else:
-        dict_file = {'server': {'httpPort': int(client_proxy_port), 'httpsPort': int(api_server_port)}}
-        if cloud == consts.Azure_ChinaCloudName:
-            dict_file['cloud'] = 'AzureChinaCloud'
-        elif cloud == consts.Azure_USGovCloudName:
-            dict_file['cloud'] = 'AzureUSGovernmentCloud'
 
     telemetry.set_debug_info('User type is ', user_type)
+    dict_file['cloud'] = cloud
+    # TODO: when Azure CLI adds support for new ARM endpoints in Azure CLI context, use that instead.
+    # TODO: "dataplaneEndpoints" in arm_metadata is a temporary check for on-premise environment where 2020-09-01 ARM
+    # metadata API is available. This is because on-premise environments requires the following configurations.
+    if "dataplaneEndpoints" in arm_metadata:
+        # Retrieve values from ARM metadata for now as Azure CLI context may not be accurate due to lack of
+        # support for changing or new ARM metadata endpoints.
+        dict_file['cloudConfig'] = {}
+        dict_file['cloudConfig']['resourceManagerEndpoint'] = arm_metadata['resourceManager']
+        relay_endpoint_suffix = arm_metadata['suffixes']['relayEndpointSuffix']
+        dict_file['cloudConfig']['serviceBusEndpointSuffix'] = (relay_endpoint_suffix)[1:] if relay_endpoint_suffix[0] == '.' else relay_endpoint_suffix
+        dict_file['cloudConfig']['activeDirectoryEndpoint'] = arm_metadata['authentication']['loginEndpoint']
 
     try:
         with open(config_file_location, 'w') as f:

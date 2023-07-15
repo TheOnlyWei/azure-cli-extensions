@@ -2,6 +2,9 @@
 
 Release History
 ===============
+1.5.0+winfield.preview
+++++++
+* Added on-premises client proxy configuration support.
 
 1.4.0
 ++++++
