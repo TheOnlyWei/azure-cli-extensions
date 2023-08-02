@@ -383,6 +383,12 @@ def create_connectedk8s(cmd, client, resource_group_name, cluster_name, correlat
     put_cc_response = create_cc_resource(client, resource_group_name, cluster_name, cc, no_wait)
     put_cc_response = LongRunningOperation(cmd.cli_ctx)(put_cc_response)
     print("Azure resource provisioning has finished.")
+
+    # populating kube aad endpoint for autonomous
+    if "dataplaneEndpoints" in arm_metadata:
+        kube_aad_endpoint = put_cc_response.identity.principal_id + ".k8sproxysvc.connectrp.azs"
+    else:
+        kube_aad_endpoint = ""
     # Checking if custom locations rp is registered and fetching oid if it is registered
     enable_custom_locations, custom_locations_oid = check_cl_registration_and_get_oid(cmd, cl_oid, subscription_id)
 
@@ -391,7 +397,7 @@ def create_connectedk8s(cmd, client, resource_group_name, cluster_name, correlat
     utils.helm_install_release(cmd.cli_ctx.cloud.endpoints.resource_manager, chart_path, subscription_id, kubernetes_distro, kubernetes_infra, resource_group_name, cluster_name,
                                location, onboarding_tenant_id, http_proxy, https_proxy, no_proxy, proxy_cert, private_key_pem, kube_config,
                                kube_context, no_wait, values_file, azure_cloud, disable_auto_upgrade, enable_custom_locations,
-                               custom_locations_oid, helm_client_location, enable_private_link, arm_metadata, onboarding_timeout, container_log_path)
+                               custom_locations_oid, helm_client_location, enable_private_link, arm_metadata, kube_aad_endpoint, onboarding_timeout, container_log_path)
     return put_cc_response
 
 
