@@ -3,6 +3,10 @@
 Release History
 ===============
 
+1.5.0
+++++++
+* Look up custom locations RP SP app by object id rather than name.
+
 1.4.0
 ++++++
 * Added support for reading ARM metadata 2022-09-01.
