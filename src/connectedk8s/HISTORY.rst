@@ -2,9 +2,14 @@
 
 Release History
 ===============
-1.5.0+winfield.preview
+
+1.6.0+winfield.preview
 ++++++
 * Added on-premises client proxy configuration support.
+
+1.5.0
+++++++
+* Look up custom locations RP SP app by object id rather than name.
 
 1.4.0
 ++++++
