@@ -19,14 +19,19 @@ from azure.cli.core import get_default_cli
 import subprocess
 from subprocess import Popen, PIPE, run, STDOUT, call, DEVNULL
 from azure.cli.testsdk import (LiveScenarioTest, ResourceGroupPreparer, live_only)  # pylint: disable=import-error
+from azure.cli.core.azclierror import RequiredArgumentMissingError
 
 TEST_DIR = os.path.abspath(os.path.join(os.path.abspath(__file__), '..'))
 logger = get_logger(__name__)
 
 def load_config():
-    with open('./config.json', 'r') as f:
-        return json.load(f)
-
+    configPath = os.path.join(os.path.dirname(__file__), "config.json")
+    with open(configPath, 'r') as f:
+        config = json.load(f)
+    for key in config:
+        if not config[key]:
+            raise RequiredArgumentMissingError(f"Missing required configuration in {configPath} file. Make sure all properties are populated.")
+    return config
 
 def _get_test_data_file(filename):
     # Don't output temporary test data to "**/azext_connectedk8s/tests/latest/data/" as that location
@@ -210,6 +215,7 @@ class Connectedk8sScenarioTest(LiveScenarioTest):
         managed_cluster_name = self.create_random_name(prefix='test-enable-disable', length=24)
         kubeconfig="%s" % (_get_test_data_file(managed_cluster_name + '-config.yaml')) 
         config = load_config()
+        print(f"@@@@@@@@@@config['customLocationsOid']: {config['customLocationsOid']}")
         self.kwargs.update({
             'rg': resource_group,
             'name': self.create_random_name(prefix='cc-', length=12),
@@ -217,7 +223,7 @@ class Connectedk8sScenarioTest(LiveScenarioTest):
             'managed_cluster_name': managed_cluster_name,
             'custom_locations_oid': config['customLocationsOid']
         })
-
+        
         self.cmd('aks create -g {rg} -n {managed_cluster_name} --generate-ssh-keys')
         self.cmd('aks get-credentials -g {rg} -n {managed_cluster_name} -f {kubeconfig} --admin')
         self.cmd('connectedk8s connect -g {rg} -n {name} -l eastus --tags foo=doo --kube-config {kubeconfig} --kube-context {managed_cluster_name}-admin', checks=[
@@ -268,7 +274,7 @@ class Connectedk8sScenarioTest(LiveScenarioTest):
         disabled_cmd1 = json.loads(cmd_output1.communicate()[0].strip())
         assert(disabled_cmd1["systemDefaultValues"]['clusterconnect-agent']['enabled'] == bool(0))
 
-        self.cmd('connectedk8s enable-features -n {name} -g {rg} --features custom-locations --kube-config {kubeconfig} --kube-context {managed_cluster_name}-admin')
+        self.cmd('connectedk8s enable-features -n {name} -g {rg} --features custom-locations --kube-config {kubeconfig} --kube-context {managed_cluster_name}-admin --custom-locations-oid {custom_locations_oid}')
         cmd_output1 = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
         _, error_helm_delete = cmd_output1.communicate()
         assert(cmd_output1.returncode == 0)

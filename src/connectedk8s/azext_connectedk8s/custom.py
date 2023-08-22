@@ -1380,6 +1380,7 @@ def enable_features(cmd, client, resource_group_name, cluster_name, features, ku
         azrbac_skip_authz_check = escape_proxy_settings(azrbac_skip_authz_check)
 
     if enable_cl:
+        print(f"@@@@@@@@ cl_oid: {cl_oid}")
         if cl_oid is None:
             raise RequiredArgumentMissingError("Custom locations object id was not passed. Please pass the '--custom-locations-oid' to enable custom locations.")
         subscription_id = os.getenv('AZURE_SUBSCRIPTION_ID') if custom_token_passed is True else get_subscription_id(cmd.cli_ctx)
