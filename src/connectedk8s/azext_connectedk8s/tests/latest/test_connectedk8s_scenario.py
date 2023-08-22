@@ -23,6 +23,10 @@ from azure.cli.testsdk import (LiveScenarioTest, ResourceGroupPreparer, live_onl
 TEST_DIR = os.path.abspath(os.path.join(os.path.abspath(__file__), '..'))
 logger = get_logger(__name__)
 
+def load_config():
+    with open('./config.json', 'r') as f:
+        return json.load(f)
+
 
 def _get_test_data_file(filename):
     # Don't output temporary test data to "**/azext_connectedk8s/tests/latest/data/" as that location
@@ -205,11 +209,13 @@ class Connectedk8sScenarioTest(LiveScenarioTest):
 
         managed_cluster_name = self.create_random_name(prefix='test-enable-disable', length=24)
         kubeconfig="%s" % (_get_test_data_file(managed_cluster_name + '-config.yaml')) 
+        config = load_config()
         self.kwargs.update({
             'rg': resource_group,
             'name': self.create_random_name(prefix='cc-', length=12),
             'kubeconfig': kubeconfig,
-            'managed_cluster_name': managed_cluster_name
+            'managed_cluster_name': managed_cluster_name,
+            'custom_locations_oid': config['customLocationsOid']
         })
 
         self.cmd('aks create -g {rg} -n {managed_cluster_name} --generate-ssh-keys')
@@ -236,7 +242,7 @@ class Connectedk8sScenarioTest(LiveScenarioTest):
         changed_cmd = json.loads(cmd_output.communicate()[0].strip())
         assert(changed_cmd["systemDefaultValues"]['customLocations']['enabled'] == bool(0))
 
-        self.cmd('connectedk8s enable-features -n {name} -g {rg} --features custom-locations --kube-config {kubeconfig} --kube-context {managed_cluster_name}-admin')
+        self.cmd('connectedk8s enable-features -n {name} -g {rg} --features custom-locations --kube-config {kubeconfig} --kube-context {managed_cluster_name}-admin --custom-locations-oid {custom_locations_oid}')
         cmd_output1 = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
         _, error_helm_delete = cmd_output1.communicate()
         assert(cmd_output1.returncode == 0)
