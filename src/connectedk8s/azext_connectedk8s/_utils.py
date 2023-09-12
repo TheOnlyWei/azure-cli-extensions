@@ -19,6 +19,7 @@ from knack.prompting import NoTTYException, prompt_y_n
 from azure.cli.core.commands.client_factory import get_subscription_id
 from azure.cli.core.util import send_raw_request
 from azure.cli.core import telemetry
+from azure.cli.core.util import _log_request, _log_response
 from azure.core.exceptions import ResourceNotFoundError, HttpResponseError
 from msrest.exceptions import AuthenticationError, HttpOperationError, TokenExpiredError
 from msrest.exceptions import ValidationError as MSRestValidationError
@@ -28,6 +29,9 @@ import azext_connectedk8s._constants as consts
 from kubernetes import client as kube_client
 from azure.cli.core import get_default_cli
 from azure.cli.core.azclierror import CLIInternalError, ClientRequestError, ArgumentUsageError, ManualInterrupt, AzureResponseError, AzureInternalError, ValidationError
+import platform
+from azure.cli.core._profile import Profile
+import uuid
 
 logger = get_logger(__name__)
 
@@ -837,3 +841,67 @@ def get_metadata(arm_endpoint, api_version="2022-09-01"):
         print(msg, file=sys.stderr)
         print(f"Please ensure you have network connection. Error: {str(err)}", file=sys.stderr)
         arm_exception_handler(err, msg)
+
+
+def should_disable_connection_verify():
+    return bool(os.environ.get("AZURE_CLI_DISABLE_CONNECTION_VERIFICATION"))
+
+
+def get_az_user_agent():
+    """
+    Get the
+    """
+    # Dynamically load the core version
+    from azure.cli.core import __version__ as core_version
+
+    agents = ["AZURECLI/{}".format(core_version)]
+
+    from azure.cli.core._environment import _ENV_AZ_INSTALLER
+    if _ENV_AZ_INSTALLER in os.environ:
+        agents.append('({})'.format(os.environ[_ENV_AZ_INSTALLER]))
+
+    # msrest already has this
+    # https://github.com/Azure/msrest-for-python/blob/4cc8bc84e96036f03b34716466230fb257e27b36/msrest/pipeline/universal.py#L70
+    # if ENV_ADDITIONAL_USER_AGENT in os.environ:
+    #     agents.append(os.environ[ENV_ADDITIONAL_USER_AGENT])
+
+    return ' '.join(agents)
+
+
+def get_az_rest_user_agent():
+    """Get User-Agent for az rest calls"""
+    agents = ['python/{}'.format(platform.python_version()),
+              '({})'.format(platform.platform()),
+              get_az_user_agent()
+              ]
+
+    return ' '.join(agents)
+
+
+def get_service_principal(cmd, object_id):
+    """
+    Retrieves service principal application information via Microsoft Graph.
+    :param cmd: the command object.
+    :param object_id: the object id of the service principal to look up.
+    :returns: a dictionary of response JSON.
+    """
+    endpoint = cmd.cli_ctx.cloud.endpoints.microsoft_graph_resource_id
+    profile = Profile(cli_ctx=cmd.cli_ctx)
+    raw_token, _, _ = profile.get_raw_token(endpoint)
+    token_type, token, _ = raw_token
+    headers = {}
+    headers['Authorization'] = '{} {}'.format(token_type, token)
+    agents = [get_az_rest_user_agent()]
+    headers['User-Agent'] = ' '.join(agents)
+    headers["x-ms-client-request-id"] = str(uuid.uuid4())
+    s = requests.Session()
+    if endpoint[-1] != '/':
+        endpoint += '/'
+    url = f"{endpoint}v1.0/servicePrincipals/{object_id}"
+    req = requests.Request(method="GET", url=url, headers=headers, data=None)
+    prepped = s.prepare_request(req)
+    _log_request(prepped)
+    settings = s.merge_environment_settings(prepped.url, {}, None, not should_disable_connection_verify(), None)
+    resp = s.send(prepped, **settings)
+    _log_response(resp)
+    return json.loads(resp.content)

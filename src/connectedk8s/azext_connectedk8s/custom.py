@@ -2173,10 +2173,8 @@ def custom_locations_oid_valid(cmd, cl_oid):
     if cl_oid is None:
         raise RequiredArgumentMissingError("The passed in custom locations object id is None. Please pass in the custom locations object id to verify.")
     try:
-        sp_graph_client = get_graph_client_service_principals(cmd.cli_ctx)
-        # Do not use display names for look-up as display names are not unique.
-        result = sp_graph_client.get(cl_oid)
-        logger.debug(f"Retrieved SP app named '{result.display_name}' for object id {cl_oid}")
+        service_principal_info = utils.get_service_principal(cmd, cl_oid)
+        logger.debug(f"Retrieved SP app named '{service_principal_info['displayName']}' for object id {cl_oid}")
         return True
     except Exception as e:
         error = f"Unable to get the custom locations service principal application using the object id {cl_oid}. Please verify the object id is valid."
