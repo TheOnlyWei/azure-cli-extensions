@@ -1392,7 +1392,7 @@ def enable_features(cmd, client, resource_group_name, cluster_name, features, ku
     if enable_azure_rbac:
         if (azrbac_client_id is None) or (azrbac_client_secret is None):
             telemetry.set_exception(exception='Application ID or secret is not provided for Azure RBAC', fault_type=consts.Application_Details_Not_Provided_For_Azure_RBAC_Fault,
-                                    summary='Application id, application secret is required to enable/update Azure RBAC feature')
+                                    summary='Application ID, application secret is required to enable/update Azure RBAC feature')
             raise RequiredArgumentMissingError("Please provide Application id, application secret to enable/update Azure RBAC feature")
         if azrbac_skip_authz_check is None:
             azrbac_skip_authz_check = ""
@@ -2167,8 +2167,8 @@ def test_custom_location_requirements(cmd, cl_oid, subscription_id):
     if cl_oid is not None:
         if not extended_location_registered(cmd, subscription_id):
             raise ResourceNotFoundError("Custom locations object id was passed, but Microsoft.ExtendedLocation is not registered. Please register it and run again.")
-        if not custom_locations_oid_valid(cmd, cl_oid):
-            raise InvalidArgumentValueError(f"Error looking up custom locations object id '{cl_oid}'. It might be invalid.")
+        # Won't fail if cl_oid cannot be retrieved. Simply warns user about potentially invalid cl_oid.
+        custom_locations_oid_valid(cmd, cl_oid)
     else:
         logger.warning("Won't enable custom locations feature as parameter '--custom-locations-oid' wasn't passed. Learn more at https://aka.ms/CustomLocationsObjectID")
 
@@ -2196,13 +2196,14 @@ def custom_locations_oid_valid(cmd, cl_oid):
         # Do not use display names for look-up as display names are not unique.
         result = sp_graph_client.get(cl_oid)
         logger.debug(f"Retrieved SP app named '{result.display_name}' for object id {cl_oid}")
-        return True
     except Exception as e:
-        error = f"Unable to get the custom locations service principal application using the object id {cl_oid}. Please verify the object id is valid."
-        logger.error(error + " " + str(e))
+        warning = f"Failed to get and validate custom locations service principal application with object id {cl_oid}. You may need to manually verify that the object id is valid or if you have permission to get the service principal.\nRefer to https://learn.microsoft.com/en-us/azure/azure-arc/kubernetes/custom-locations#enable-custom-locations-on-your-cluster."
+        logger.warning(warning)
+        error = "Inner exception error: " + str(e)
+        logger.warning(error)
+        logger.warning(f"Continuing execution using the provided object id '{cl_oid}' to enable custom locations feature.")
         telemetry.set_exception(exception=e, fault_type=consts.Custom_Locations_OID_Fetch_Fault_Type,
-                                summary=error)
-        return False
+                                summary=f"{warning}\n{error}")
 
 
 def troubleshoot(cmd, client, resource_group_name, cluster_name, kube_config=None, kube_context=None, no_wait=False, tags=None):

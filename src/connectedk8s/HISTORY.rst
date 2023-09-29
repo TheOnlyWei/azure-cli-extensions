@@ -3,9 +3,9 @@
 Release History
 ===============
 
-1.5.0
+1.4.3
 ++++++
-* Enforce valid custom locations service principal application object id passed in by the user for enabling custom locations feature.
+* Look up custom locations service principal application by object id instead of display name.
 
 1.4.2
 ++++++
