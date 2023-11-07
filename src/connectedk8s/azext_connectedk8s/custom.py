@@ -2175,6 +2175,7 @@ def check_cl_registration_and_get_oid(cmd, cl_oid, subscription_id):
     try:
         rp_client = resource_providers_client(cmd.cli_ctx, subscription_id)
         cl_registration_state = rp_client.get(consts.Custom_Locations_Provider_Namespace).registration_state
+        print(f"CL reg state: {cl_registration_state}")
         if cl_registration_state != "Registered":
             enable_custom_locations = False
             logger.warning("'Custom-locations' feature couldn't be enabled on this cluster as the pre-requisite registration of 'Microsoft.ExtendedLocation' was not met. More details for enabling this feature later on this cluster can be found here - https://aka.ms/EnableCustomLocations")
