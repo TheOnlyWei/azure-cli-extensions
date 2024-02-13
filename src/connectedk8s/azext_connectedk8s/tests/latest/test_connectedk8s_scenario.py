@@ -644,7 +644,6 @@ class Connectedk8sScenarioTest(LiveScenarioTest):
             proxy_process_stdout, proxy_process_stderr = parent_process.communicate()
             proxy_process_stdout = proxy_process_stdout.decode("utf-8") if proxy_process_stdout else None
             proxy_process_stderr = proxy_process_stderr.decode("utf-8") if proxy_process_stderr else None
-            found_proxy_process.terminate()
             raise ValidationError(f"""Timed out waiting for creation of {proxy_process_name} process.
 Proxy process stdout retrieval attempt:\n{proxy_process_stdout}
 Proxy process stderr retrieval attempt:\n{proxy_process_stderr}""")
