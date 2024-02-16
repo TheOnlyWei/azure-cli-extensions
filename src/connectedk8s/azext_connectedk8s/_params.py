@@ -93,7 +93,7 @@ def load_arguments(self, _):
         c.argument('yes', options_list=['--yes', '-y'], help='Do not prompt for confirmation.', action='store_true')
 
     with self.argument_context('connectedk8s list') as c:
-        pass
+        c.argument('cool_flag', help='Something cool new flag.', is_preview=True)
 
     with self.argument_context('connectedk8s show') as c:
         c.argument('cluster_name', options_list=['--name', '-n'], id_part='name', help='The name of the connected cluster.')
