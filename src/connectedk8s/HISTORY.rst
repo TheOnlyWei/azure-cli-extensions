@@ -3,6 +3,10 @@
 Release History
 ===============
 
+1.9.3
+++++++
+* Update for disconnected environment scenario.
+
 1.9.2
 ++++++
 * Fixed the issue where pre-onboarding diagnostic checks failed for clusters running Kubernetes v1.31.0.
