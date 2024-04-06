@@ -3,6 +3,10 @@
 Release History
 ===============
 
+1.7.3
+++++++
+* Update for disconnected environment scenario.
+
 1.7.2
 ++++++
 * Fixed Broken Import for Service Principal
