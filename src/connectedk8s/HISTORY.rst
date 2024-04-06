@@ -3,6 +3,10 @@
 Release History
 ===============
 
+1.10.1
+++++++
+* Update for disconnected environment scenario.
+
 1.10.0
 ++++++
 * Add support for Arc Gateway feature using '--gateway-resource-id' and '--disable-gateway' parameters.
