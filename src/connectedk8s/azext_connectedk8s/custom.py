@@ -1085,7 +1085,7 @@ def get_server_address(kube_config, kube_context):
 def get_connectedk8s(cmd, client, resource_group_name, cluster_name):
     # Override preview client to show private link properties, workload identity properties, and cluster kind to
     # customers
-    client = cf_connected_cluster_prev_2024_07_01(cmd.cli_ctx, None)
+    client = cf_connected_cluster_prev_2023_11_01(cmd.cli_ctx, None)
     return client.get(resource_group_name, cluster_name)
 
 

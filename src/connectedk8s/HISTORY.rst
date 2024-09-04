@@ -3,6 +3,10 @@
 Release History
 ===============
 
+1.9.3+arc4k8s
+++++++
+* Revert show command to use API version 2023-11-01.
+
 1.9.3
 ++++++
 * Update for disconnected environment scenario.
